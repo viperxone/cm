@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meridian Championship — Manager Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">MC</div>
+        <div class="brand-text">
+          <div class="brand-title">Meridian<br>Championship</div>
+        </div>
+        <span id="inbox-badge" class="badge"></span>
+      </div>
+
+      <nav id="app-nav" class="app-nav"></nav>
+
+      <div class="sidebar-footer">
+        <button id="continue-btn" class="continue-btn">Continue &#9654;</button>
+        <button id="new-save-btn" class="ghost-btn">New save</button>
+        <p class="footer-note">Lean v1 prototype — auto-saves locally after every action.</p>
+      </div>
+    </aside>
+
+    <main id="app-root" class="app-root"></main>
+  </div>
+
+  <div id="new-game-overlay" class="overlay hidden">
+    <div class="overlay-card">
+      <h2>Start a new career</h2>
+      <p>Pick a club in the fictional Meridian Championship. Everything — players, form,
+         injuries — is generated fresh.</p>
+      <label class="field">
+        <span>Club</span>
+        <select id="club-select"></select>
+      </label>
+      <button id="start-game-btn" class="primary-btn">Start season</button>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/gen.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
