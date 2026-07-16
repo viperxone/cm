@@ -90,17 +90,195 @@
   const PRESSING = ["Low", "Medium", "High"];
   const TEMPO = ["Slow", "Normal", "Fast"];
 
+  // The 2025-26 Premier League lineup (20 clubs). Real club names/player
+  // names are facts, not copyrighted expression — no crests, kits, or
+  // broadcast assets are used or reproduced anywhere in this prototype.
   const CLUB_NAMES = [
-    "Ashcombe United", "Redgate Town", "Marlowe Athletic", "Corvale FC",
-    "Brightwell Rovers", "Sanderton City", "Old Mill Wanderers",
-    "Thornbury FC", "Kesterwick Albion", "Fenmoor United"
+    "Liverpool", "Arsenal", "Manchester City", "Chelsea", "Newcastle United",
+    "Aston Villa", "Tottenham Hotspur", "Manchester United", "Brighton & Hove Albion",
+    "Nottingham Forest", "Crystal Palace", "Bournemouth", "Fulham", "Brentford",
+    "Everton", "West Ham United", "Wolverhampton Wanderers", "Burnley",
+    "Leeds United", "Sunderland"
   ];
 
-  // Relative strength tiers used only at world-generation time, to give the
-  // league believable variance (title contenders vs strugglers) from day one.
-  const CLUB_TIERS = [1.15, 1.10, 1.05, 1.00, 1.00, 0.98, 0.95, 0.92, 0.90, 0.85];
+  // Rough relative strength tiers (not a real table) used only at
+  // world-generation time, so the league has believable variance from day
+  // one — title contenders, mid-table, strugglers, newly-promoted sides.
+  const CLUB_TIERS = [
+    1.18, 1.16, 1.14, 1.08, 1.06, 1.04, 1.03, 1.02, 1.00, 0.99,
+    0.98, 0.97, 0.96, 0.95, 0.94, 0.93, 0.90, 0.88, 0.87, 0.85
+  ];
 
-  const LEAGUE_NAME = "Meridian Championship";
+  const LEAGUE_NAME = "Premier League";
+
+  // A handful of recognizable real first-teamers per club (captain, star
+  // striker, etc.) — not a full researched squad. These get slotted into
+  // the matching position first; every remaining squad slot is filled by
+  // the generator below. Rosters are a mid-2025-26-season snapshot and will
+  // drift out of date as transfer windows happen — that's expected for a
+  // hobby prototype, not a maintained database.
+  const REAL_STARS = {
+    "Arsenal": [
+      { name: "David Raya", position: "GK" },
+      { name: "William Saliba", position: "CD" }, { name: "Gabriel Magalhães", position: "CD" },
+      { name: "Ben White", position: "FB" },
+      { name: "Declan Rice", position: "DM" },
+      { name: "Martin Ødegaard", position: "CM" },
+      { name: "Bukayo Saka", position: "WG" },
+      { name: "Viktor Gyökeres", position: "ST" }, { name: "Kai Havertz", position: "ST" }
+    ],
+    "Aston Villa": [
+      { name: "Emiliano Martínez", position: "GK" },
+      { name: "Ezri Konsa", position: "CD" },
+      { name: "Matty Cash", position: "FB" },
+      { name: "Boubacar Kamara", position: "DM" },
+      { name: "John McGinn", position: "CM" },
+      { name: "Morgan Rogers", position: "WG" },
+      { name: "Ollie Watkins", position: "ST" }
+    ],
+    "Bournemouth": [
+      { name: "Djordje Petrović", position: "GK" },
+      { name: "Marcos Senesi", position: "CD" },
+      { name: "Adrien Truffert", position: "FB" },
+      { name: "Alex Scott", position: "CM" },
+      { name: "Antoine Semenyo", position: "WG" },
+      { name: "Evanilson", position: "ST" }
+    ],
+    "Brentford": [
+      { name: "Mark Flekken", position: "GK" },
+      { name: "Nathan Collins", position: "CD" },
+      { name: "Keane Lewis-Potter", position: "FB" },
+      { name: "Mikkel Damsgaard", position: "CM" },
+      { name: "Kevin Schade", position: "WG" },
+      { name: "Igor Thiago", position: "ST" }
+    ],
+    "Brighton & Hove Albion": [
+      { name: "Bart Verbruggen", position: "GK" },
+      { name: "Lewis Dunk", position: "CD" },
+      { name: "Pervis Estupiñán", position: "FB" },
+      { name: "Carlos Baleba", position: "CM" },
+      { name: "Kaoru Mitoma", position: "WG" },
+      { name: "Danny Welbeck", position: "ST" }
+    ],
+    "Burnley": [
+      { name: "Maxime Estève", position: "CD" },
+      { name: "Josh Cullen", position: "CM" },
+      { name: "Jaidon Anthony", position: "WG" }
+    ],
+    "Chelsea": [
+      { name: "Robert Sánchez", position: "GK" },
+      { name: "Levi Colwill", position: "CD" }, { name: "Wesley Fofana", position: "CD" },
+      { name: "Reece James", position: "FB" },
+      { name: "Moisés Caicedo", position: "DM" },
+      { name: "Enzo Fernández", position: "CM" },
+      { name: "Pedro Neto", position: "WG" },
+      { name: "Nicolas Jackson", position: "ST" }, { name: "João Pedro", position: "ST" }
+    ],
+    "Crystal Palace": [
+      { name: "Dean Henderson", position: "GK" },
+      { name: "Marc Guéhi", position: "CD" },
+      { name: "Tyrick Mitchell", position: "FB" },
+      { name: "Adam Wharton", position: "CM" },
+      { name: "Eberechi Eze", position: "WG" },
+      { name: "Jean-Philippe Mateta", position: "ST" }
+    ],
+    "Everton": [
+      { name: "Jordan Pickford", position: "GK" },
+      { name: "James Tarkowski", position: "CD" },
+      { name: "Vitaliy Mykolenko", position: "FB" },
+      { name: "Idrissa Gueye", position: "CM" },
+      { name: "Iliman Ndiaye", position: "WG" },
+      { name: "Beto", position: "ST" }
+    ],
+    "Fulham": [
+      { name: "Bernd Leno", position: "GK" },
+      { name: "Calvin Bassey", position: "CD" },
+      { name: "Antonee Robinson", position: "FB" },
+      { name: "Sander Berge", position: "CM" },
+      { name: "Alex Iwobi", position: "WG" },
+      { name: "Rodrigo Muniz", position: "ST" }
+    ],
+    "Leeds United": [
+      { name: "Pascal Struijk", position: "CD" },
+      { name: "Ethan Ampadu", position: "CM" },
+      { name: "Daniel James", position: "WG" },
+      { name: "Joel Piroe", position: "ST" }
+    ],
+    "Liverpool": [
+      { name: "Alisson Becker", position: "GK" },
+      { name: "Virgil van Dijk", position: "CD" }, { name: "Ibrahima Konaté", position: "CD" },
+      { name: "Milos Kerkez", position: "FB" }, { name: "Conor Bradley", position: "FB" },
+      { name: "Alexis Mac Allister", position: "DM" },
+      { name: "Dominik Szoboszlai", position: "CM" },
+      { name: "Mohamed Salah", position: "WG" }, { name: "Florian Wirtz", position: "WG" },
+      { name: "Alexander Isak", position: "ST" }, { name: "Hugo Ekitike", position: "ST" }
+    ],
+    "Manchester City": [
+      { name: "Gianluigi Donnarumma", position: "GK" },
+      { name: "Rúben Dias", position: "CD" }, { name: "Joško Gvardiol", position: "CD" },
+      { name: "Rico Lewis", position: "FB" },
+      { name: "Rodri", position: "DM" },
+      { name: "Nico González", position: "CM" }, { name: "Mateo Kovačić", position: "CM" },
+      { name: "Jeremy Doku", position: "WG" }, { name: "Savinho", position: "WG" },
+      { name: "Erling Haaland", position: "ST" }
+    ],
+    "Manchester United": [
+      { name: "André Onana", position: "GK" },
+      { name: "Matthijs de Ligt", position: "CD" }, { name: "Lisandro Martínez", position: "CD" },
+      { name: "Diogo Dalot", position: "FB" }, { name: "Noussair Mazraoui", position: "FB" },
+      { name: "Manuel Ugarte", position: "DM" },
+      { name: "Bruno Fernandes", position: "CM" }, { name: "Casemiro", position: "CM" },
+      { name: "Amad Diallo", position: "WG" },
+      { name: "Benjamin Šeško", position: "ST" }, { name: "Rasmus Højlund", position: "ST" }
+    ],
+    "Newcastle United": [
+      { name: "Nick Pope", position: "GK" },
+      { name: "Sven Botman", position: "CD" }, { name: "Fabian Schär", position: "CD" },
+      { name: "Kieran Trippier", position: "FB" }, { name: "Tino Livramento", position: "FB" },
+      { name: "Bruno Guimarães", position: "DM" },
+      { name: "Sandro Tonali", position: "CM" },
+      { name: "Anthony Gordon", position: "WG" },
+      { name: "Yoane Wissa", position: "ST" }
+    ],
+    "Nottingham Forest": [
+      { name: "Matz Sels", position: "GK" },
+      { name: "Murillo", position: "CD" },
+      { name: "Neco Williams", position: "FB" },
+      { name: "Elliot Anderson", position: "CM" },
+      { name: "Callum Hudson-Odoi", position: "WG" },
+      { name: "Chris Wood", position: "ST" }, { name: "Igor Jesus", position: "ST" }
+    ],
+    "Sunderland": [
+      { name: "Anthony Patterson", position: "GK" },
+      { name: "Granit Xhaka", position: "CM" },
+      { name: "Wilson Isidor", position: "ST" }
+    ],
+    "Tottenham Hotspur": [
+      { name: "Guglielmo Vicario", position: "GK" },
+      { name: "Cristian Romero", position: "CD" }, { name: "Micky van de Ven", position: "CD" },
+      { name: "Pedro Porro", position: "FB" }, { name: "Destiny Udogie", position: "FB" },
+      { name: "Rodrigo Bentancur", position: "DM" },
+      { name: "James Maddison", position: "CM" },
+      { name: "Mohammed Kudus", position: "WG" },
+      { name: "Dominic Solanke", position: "ST" }, { name: "Richarlison", position: "ST" }
+    ],
+    "West Ham United": [
+      { name: "Alphonse Areola", position: "GK" },
+      { name: "Max Kilman", position: "CD" }, { name: "Konstantinos Mavropanos", position: "CD" },
+      { name: "Emerson", position: "FB" },
+      { name: "Tomáš Souček", position: "CM" },
+      { name: "Jarrod Bowen", position: "WG" },
+      { name: "Niclas Füllkrug", position: "ST" }
+    ],
+    "Wolverhampton Wanderers": [
+      { name: "José Sá", position: "GK" },
+      { name: "Yerson Mosquera", position: "CD" },
+      { name: "Matt Doherty", position: "FB" },
+      { name: "João Gomes", position: "CM" },
+      { name: "Jean-Ricner Bellegarde", position: "WG" },
+      { name: "Jørgen Strand Larsen", position: "ST" }
+    ]
+  };
 
   const FIRST_NAMES = [
     "Jonas", "Marcus", "Elian", "Theo", "Rikard", "Dario", "Nolan", "Sami",
@@ -119,7 +297,7 @@
   const NS = {
     ATTRIBUTES, POSITIONS, POSITION_LABELS, POSITION_FALLBACK, ROLES,
     SQUAD_TEMPLATE, FORMATIONS, MENTALITIES, PRESSING, TEMPO,
-    CLUB_NAMES, CLUB_TIERS, LEAGUE_NAME, FIRST_NAMES, LAST_NAMES
+    CLUB_NAMES, CLUB_TIERS, LEAGUE_NAME, FIRST_NAMES, LAST_NAMES, REAL_STARS
   };
 
   global.FM = Object.assign(global.FM || {}, NS);

@@ -21,14 +21,17 @@
   let _uid = 1;
   function nextId(prefix) { return prefix + "_" + (_uid++); }
 
-  function generatePlayer(rng, position, clubTier) {
+  function generatePlayer(rng, position, clubTier, opts) {
+    opts = opts || {};
     const roleNames = Object.keys(FM.ROLES[position]);
     const role = pick(rng, roleNames);
     const weights = FM.ROLES[position][role];
 
     // Quality is club-tier-scaled with per-player variance, so even a top
     // club has depth/backup players and a weak club can have one gem.
-    const quality = clubTier * (0.72 + rng() * 0.5);
+    // Real first-teamers (opts.qualityBoost) skew noticeably above the
+    // squad's generated depth, same as in reality.
+    const quality = clubTier * (0.72 + rng() * 0.5) * (opts.qualityBoost || 1);
     const base = 8;
 
     const attributes = {};
@@ -40,7 +43,7 @@
 
     return {
       id: nextId("p"),
-      name: pick(rng, FM.FIRST_NAMES) + " " + pick(rng, FM.LAST_NAMES),
+      name: opts.name || (pick(rng, FM.FIRST_NAMES) + " " + pick(rng, FM.LAST_NAMES)),
       position, role, attributes,
       age: randInt(rng, 17, 34),
       contractYears: randInt(rng, 1, 4),
@@ -59,9 +62,17 @@
   }
 
   function generateClub(rng, name, tier, isUserClub) {
+    const stars = (FM.REAL_STARS && FM.REAL_STARS[name]) || [];
     const players = [];
     FM.SQUAD_TEMPLATE.forEach(({ pos, count }) => {
-      for (let i = 0; i < count; i++) players.push(generatePlayer(rng, pos, tier));
+      const starsForPos = stars.filter(s => s.position === pos);
+      for (let i = 0; i < count; i++) {
+        if (i < starsForPos.length) {
+          players.push(generatePlayer(rng, pos, tier, { name: starsForPos[i].name, qualityBoost: 1.22 }));
+        } else {
+          players.push(generatePlayer(rng, pos, tier));
+        }
+      }
     });
     return {
       id: nextId("c"),
