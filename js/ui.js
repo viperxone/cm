@@ -149,25 +149,8 @@
         text: "Your side lacks natural width — crosses will be rare with this shape." }));
     }
 
-    wrap.appendChild(el("h2", { cls: "section-title", text: "Projected starting XI (auto-picked, best fit per slot)" }));
-    const table = el("table", { cls: "data-table" });
-    table.appendChild(el("thead", { children: [el("tr", { children: [
-      "Slot", "Player", "Role", "Suitability", "Condition"
-    ].map(h => el("th", { text: h })) })]}));
-    const tbody = el("tbody");
-    xi.forEach(s => {
-      tbody.appendChild(el("tr", { children: [
-        el("td", { text: s.slot }),
-        el("td", { cls: "name-cell", text: s.player.name }),
-        el("td", { text: s.player.role }),
-        el("td", { cls: "num", text: FM.overall(s.player) }),
-        el("td", { cls: "num pip " + conditionClass(s.player.state.condition), text: s.player.state.condition })
-      ]}));
-    });
-    table.appendChild(tbody);
-    wrap.appendChild(table);
     wrap.appendChild(el("p", { cls: "hint-text",
-      text: "Team selection is automatic in this prototype — it always fields your best available XI for the chosen formation." }));
+      text: "Pick your starting XI for this formation on the Lineup tab." }));
     return wrap;
   }
 
@@ -265,8 +248,187 @@
     return wrap;
   }
 
+  // --- Lineup (manual XI selection) --------------------------------------
+  function formAvg(p) {
+    return (p.state.formHistory.reduce((a, b) => a + b, 0) / p.state.formHistory.length).toFixed(1);
+  }
+
+  function playerOptionLabel(p) {
+    let flag = "";
+    if (p.state.injured) flag = " [INJURED]";
+    else if (p.state.suspended) flag = " [SUSPENDED]";
+    return p.name + " \u2014 " + p.position + "/" + p.role + " \u2014 Ovr " + FM.overall(p) +
+      " \u2014 Cond " + p.state.condition + " \u2014 Form " + formAvg(p) + flag;
+  }
+
+  function renderLineup(state, onChange) {
+    const uc = FM.userClub(state);
+    const wrap = el("div", { cls: "screen" });
+    wrap.appendChild(el("h1", { cls: "screen-title", text: "Lineup" }));
+
+    const formationField = el("label", { cls: "field", children: [
+      el("span", { text: "Formation" }),
+      (() => {
+        const s = el("select", { on: { change: (e) => { uc.tactics.formation = e.target.value; onChange(); } } });
+        Object.keys(FM.FORMATIONS).forEach(f => {
+          const opt = el("option", { text: f, attrs: { value: f } });
+          if (f === uc.tactics.formation) opt.selected = true;
+          s.appendChild(opt);
+        });
+        return s;
+      })()
+    ]});
+    const controlsRow = el("div", { cls: "tactics-controls", children: [
+      formationField,
+      el("button", { cls: "ghost-btn", text: "Reset to auto-pick", on: { click: () => { uc.lineup = null; onChange(); } } })
+    ]});
+    wrap.appendChild(controlsRow);
+
+    const formation = uc.tactics.formation;
+    const slots = FM.FORMATIONS[formation];
+    const xi = FM.pickBestXI(uc, formation); // effective XI right now (manual + auto-fill blend)
+    const usedIds = new Set(xi.map(s => s.player.id));
+
+    if (!uc.lineup || uc.lineup.formation !== formation) {
+      wrap.appendChild(el("div", { cls: "banner banner-warn",
+        text: "Showing the auto-picked best XI. Change any slot below to set your own lineup for the next matchday." }));
+    }
+
+    const table = el("table", { cls: "data-table lineup-table" });
+    table.appendChild(el("thead", { children: [el("tr", { children: [
+      "Slot", "Player", "Condition", "Form"
+    ].map(h => el("th", { text: h })) })]}));
+    const tbody = el("tbody");
+
+    slots.forEach((slotPos, idx) => {
+      const currentPlayer = xi.find(s => s.slotIndex === idx);
+      const eligiblePool = uc.players.filter(p => {
+        if (!FM.isAvailable(p)) return false;
+        if (slotPos === "GK") return p.position === "GK";
+        return p.position !== "GK";
+      }).filter(p => !usedIds.has(p.id) || (currentPlayer && currentPlayer.player.id === p.id))
+        .sort((a, b) => FM.roleScore(b) - FM.roleScore(a));
+
+      const select = el("select", { on: { change: (e) => {
+        if (!uc.lineup || uc.lineup.formation !== formation) uc.lineup = { formation, assignments: {} };
+        uc.lineup.assignments[idx] = e.target.value || null;
+        onChange();
+      }}});
+      select.appendChild(el("option", { text: "\u2014 auto \u2014", attrs: { value: "" } }));
+      eligiblePool.forEach(p => {
+        const opt = el("option", { text: playerOptionLabel(p), attrs: { value: p.id } });
+        if (currentPlayer && currentPlayer.player.id === p.id) opt.selected = true;
+        select.appendChild(opt);
+      });
+
+      const cp = currentPlayer ? currentPlayer.player : null;
+      tbody.appendChild(el("tr", { children: [
+        el("td", { text: slotPos + " #" + (slots.slice(0, idx + 1).filter(s => s === slotPos).length) }),
+        el("td", { cls: "name-cell", children: [select] }),
+        el("td", { cls: "num pip " + (cp ? conditionClass(cp.state.condition) : ""), text: cp ? cp.state.condition : "\u2014" }),
+        el("td", { cls: "num", text: cp ? formAvg(cp) : "\u2014" })
+      ]}));
+    });
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+
+    wrap.appendChild(el("p", { cls: "hint-text",
+      text: "If a selected player becomes injured or suspended before matchday, the engine automatically fills that slot from your best available option." }));
+
+    const bench = uc.players.filter(p => !usedIds.has(p.id));
+    wrap.appendChild(el("h2", { cls: "section-title", text: "Bench / unavailable (" + bench.length + ")" }));
+    const benchList = el("div", { cls: "fixture-list" });
+    bench.forEach(p => {
+      benchList.appendChild(el("div", { cls: "fixture-row", text: playerOptionLabel(p) }));
+    });
+    wrap.appendChild(benchList);
+    return wrap;
+  }
+
+  // --- Matchday: animated playback (used right after Continue) ---------------
+  function renderMatchdayAnimated(state, opts) {
+    opts = opts || {};
+    const wrap = el("div", { cls: "screen" });
+    wrap.appendChild(el("h1", { cls: "screen-title", text: "Matchday" }));
+
+    if (!state.lastReport) {
+      wrap.appendChild(el("div", { cls: "empty-state", text: "No match played yet — hit Continue." }));
+      return { screenEl: wrap, start: () => null };
+    }
+    const { report, homeName, awayName } = state.lastReport;
+
+    const scoreEl = el("div", { cls: "scoreline", text: homeName + "  0 \u2013 0  " + awayName });
+    wrap.appendChild(scoreEl);
+
+    const skipBtn = el("button", { cls: "ghost-btn skip-btn", text: "Skip to full-time \u23ED" });
+    wrap.appendChild(skipBtn);
+
+    const feed = el("div", { cls: "event-feed" });
+    wrap.appendChild(feed);
+
+    const ratingsContainer = el("div");
+    wrap.appendChild(ratingsContainer);
+
+    let idx = 0, homeGoals = 0, awayGoals = 0, timer = null, done = false;
+
+    function appendEvent(e) {
+      if (e.type === "GOAL") {
+        if (e.team === "home") homeGoals++; else awayGoals++;
+        scoreEl.textContent = homeName + "  " + homeGoals + " \u2013 " + awayGoals + "  " + awayName;
+        scoreEl.classList.add("scoreline-pulse");
+        setTimeout(() => scoreEl.classList.remove("scoreline-pulse"), 500);
+      }
+      feed.appendChild(el("div", { cls: "event-row type-" + e.type.toLowerCase() + " team-" + e.team, children: [
+        el("span", { cls: "event-minute", text: e.minute + "'" }),
+        el("span", { cls: "event-text", text: e.text })
+      ]}));
+      feed.scrollTop = feed.scrollHeight;
+    }
+
+    function renderRatings() {
+      ratingsContainer.appendChild(el("h2", { cls: "section-title", text: "Full-time \u2014 Ratings" }));
+      const ratingsWrap = el("div", { cls: "ratings-grid" });
+      [["Home", report.homeRatings], ["Away", report.awayRatings]].forEach(([label, ratings]) => {
+        const col = el("div", { cls: "ratings-col" });
+        col.appendChild(el("h3", { text: label }));
+        ratings.slice().sort((a, b) => b.rating - a.rating).forEach(r => {
+          col.appendChild(el("div", { cls: "rating-row", children: [
+            el("span", { text: r.name + " (" + r.slot + ")" }),
+            el("span", { cls: "rating-num", text: r.rating.toFixed(1) })
+          ]}));
+        });
+        ratingsWrap.appendChild(col);
+      });
+      ratingsContainer.appendChild(ratingsWrap);
+    }
+
+    function finish() {
+      if (done) return;
+      done = true;
+      if (timer) clearInterval(timer);
+      for (; idx < report.events.length; idx++) appendEvent(report.events[idx]);
+      scoreEl.textContent = homeName + "  " + report.homeGoals + " \u2013 " + report.awayGoals + "  " + awayName;
+      renderRatings();
+      skipBtn.style.display = "none";
+      if (opts.onDone) opts.onDone();
+    }
+
+    skipBtn.addEventListener("click", finish);
+
+    function start() {
+      timer = setInterval(() => {
+        if (idx >= report.events.length) { finish(); return; }
+        appendEvent(report.events[idx]);
+        idx++;
+      }, 550);
+      return timer;
+    }
+
+    return { screenEl: wrap, start };
+  }
+
   global.FM = Object.assign(global.FM || {}, {
     el, renderHeader, renderDashboard, renderSquad, renderTactics,
-    renderFixtures, renderMatchday, renderTransfersStub
+    renderFixtures, renderMatchday, renderTransfersStub, renderLineup, renderMatchdayAnimated
   });
 })(typeof window !== "undefined" ? window : global);

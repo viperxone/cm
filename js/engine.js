@@ -36,25 +36,35 @@
   // --- Team selection ------------------------------------------------------
   // Greedy best-fit XI for a formation: fill each slot with the highest
   // roleScore available player of a matching position, falling back to
-  // adjacent positions if a slot family runs dry.
+  // adjacent positions if a slot family runs dry. Respects a manually-set
+  // club.lineup (from the Lineup screen) when it matches the current
+  // formation — any slot without a valid manual pick (unset, or the picked
+  // player is injured/suspended) falls back to auto-fill for that slot only.
   function pickBestXI(club, formationId) {
     const slots = FM.FORMATIONS[formationId] || FM.FORMATIONS["4-4-2"];
     const pool = club.players.filter(isAvailable).slice()
       .sort((a, b) => roleScore(b) - roleScore(a));
     const used = new Set();
     const xi = [];
+    const manual = (club.lineup && club.lineup.formation === formationId) ? club.lineup.assignments : null;
 
-    slots.forEach(slotPos => {
-      const fallbacks = FM.POSITION_FALLBACK[slotPos];
+    slots.forEach((slotPos, idx) => {
       let chosen = null;
-      for (const fp of fallbacks) {
-        chosen = pool.find(p => !used.has(p.id) && p.position === fp);
-        if (chosen) break;
+      if (manual && manual[idx]) {
+        const candidate = pool.find(p => p.id === manual[idx] && !used.has(p.id));
+        if (candidate) chosen = candidate;
+      }
+      if (!chosen) {
+        const fallbacks = FM.POSITION_FALLBACK[slotPos];
+        for (const fp of fallbacks) {
+          chosen = pool.find(p => !used.has(p.id) && p.position === fp);
+          if (chosen) break;
+        }
       }
       if (!chosen) chosen = pool.find(p => !used.has(p.id)); // absolute last resort
-      if (chosen) { used.add(chosen.id); xi.push({ slot: slotPos, player: chosen }); }
+      if (chosen) { used.add(chosen.id); xi.push({ slot: slotPos, slotIndex: idx, player: chosen }); }
     });
-    return xi; // array of { slot, player }, length <= 11
+    return xi; // array of { slot, slotIndex, player }, length <= 11
   }
 
   // --- Team strength (Lean v1 Spec §6.1) -----------------------------------
