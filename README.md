@@ -1,8 +1,20 @@
-# Meridian Championship — Manager Prototype
+# Premier League Manager Prototype
 
-A playable proof of the **Lean v1 Spec** core loop: pick a club, set tactics,
-hit Continue, watch a season unfold in results, table, squad condition, and
-injuries. Zero dependencies, zero build step, zero cost.
+A playable proof of the **Lean v1 Spec** core loop, now using the real
+2025-26 Premier League clubs: pick a club, set tactics, hit Continue, watch
+a season unfold in results, table, squad condition, and injuries. Zero
+dependencies, zero build step, zero cost.
+
+**On the real names:** club names and player names are facts, not
+copyrighted expression — this is the same approach every Championship
+Manager/FM save editor has used for decades. No crests, kits, badges, or any
+other trademarked/licensed assets are used anywhere. Each club's squad
+blends a handful of recognizable real first-teamers (see `REAL_STARS` in
+`js/data.js`) with generated depth players — it's a snapshot, not a
+maintained database, so expect it to drift out of date as transfer windows
+happen. This is a personal, non-commercial hobby prototype; if this ever
+became something distributed more widely or monetized, real club/player
+names would need a fresh look.
 
 ## Run it
 
@@ -16,8 +28,8 @@ left off. "New save" on the sidebar wipes it and starts fresh.
 
 ## What's actually simulated
 
-- **10 fictional clubs**, 22-player squads each, generated fresh every new
-  game (different every time — no fixed roster).
+- **20 real Premier League clubs**, 22-player squads each. Every squad
+  slot a real first-teamer doesn't fill is generated fresh each new game.
 - **16 roles** across 8 positions, each scored by one shared weighted-attribute
   formula (Lean v1 Spec §3.3) — not the Bible's ~30 bespoke role formulas.
 - **Match engine** is the aggregate team-strength model from §6: attack/defense
@@ -29,9 +41,10 @@ left off. "New save" on the sidebar wipes it and starts fresh.
 - **Progression**: condition, injuries (scaled by a hidden Injury Proneness
   attribute), morale, rolling form, and board confidence vs. a pre-season
   target — all short formulas per §8, updated after every matchday.
-- **18-week double round-robin** season (every club plays every other twice),
-  full league table, inbox with match reports / injury news / periodic board
-  check-ins, and a season-complete summary.
+- **38-week double round-robin** season (every club plays every other twice
+  — same length as a real Premier League season), full league table, inbox
+  with match reports / injury news / periodic board check-ins, and a
+  season-complete summary.
 - Team selection is **automatic** — the engine always fields your best
   available XI for the formation you've chosen. There's no manual lineup
   editor in this slice (see Not included below).
